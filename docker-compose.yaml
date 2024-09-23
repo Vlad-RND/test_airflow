@@ -1,0 +1,48 @@
+services:
+  airflow-postgres:
+    image: postgres:12.0
+    container_name: ${POSTGRES_CONTAINER_NAME}
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_HOST=airflow-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=airflow
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+
+  airflow-webserver:
+    build:
+      dockerfile: local.Dockerfile
+    container_name: ${AIRFLOW_CONTAINER_NAME}
+    depends_on:
+      - airflow-postgres
+    ports:
+      - "${AIRFLOW_UI_PORT}:8000"
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=k__M6lcwl0eEzSvzXSMIjyuRYYqAal7zI2I9rBgF8tc=
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN_UPDDB=postgresql://airflow:airflow@airflow-postgres:5432/airflow
+      - AIRFLOW_LOCAL_STAND=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__LOGGING__LOGGING_LEVEL=INFO
+      - PYTHONPATH=/opt/airflow
+      - DAG_IGNORE_FILE_SYNTAX=True
+      - ACTIVATE_MEMORY_TRACKING=True
+      - AIRFLOW__CORE__MAX_MAP_LENGTH=100
+      - LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+      - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+      - AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE=False
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./requirements.txt:/opt/airflow/requirements.txt
+      - ./entrypoint.sh:/entrypoint.sh
+    command: webserver
+    deploy:
+      resources:
+        limits:
+          cpus: '${AIRFLOW_CPUS}'
+          memory: ${AIRFLOW_RAM}
